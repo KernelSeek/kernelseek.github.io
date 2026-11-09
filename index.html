@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Primary Meta Tags -->
+  <title>KernelSeek: Ask, Don't Equip &mdash; Question-Driven Coding Agents for Deep Kernel Optimization</title>
+  <meta name="title" content="Ask, Don't Equip: Question-Driven Coding Agents for Deep Kernel Optimization">
+  <meta name="description" content="KernelSeek is a question-driven coding agent that makes existing CUDA kernels faster. It produced dependency-free FlashAttention forward kernels for Hopper and Blackwell: 1.16× FlashAttention-3 and 1.46× FlashAttention-4 (geomean), correct on every scenario.">
+  <meta name="keywords" content="KernelSeek, GPU kernels, CUDA, PTX, FlashAttention, FlashAttention-3, FlashAttention-4, Hopper, Blackwell, LLM agents, coding agents, kernel optimization, question bank, evolutionary search">
+  <meta name="author" content="Gabriele Oliaro, Jaeseong Lee, Zhaoyuan Su, Sreeram Vennam, Zhihao Jia, Samyam Rajbhandari">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kernelseek.github.io/">
+  <meta property="og:title" content="Ask, Don't Equip: Question-Driven Coding Agents for Deep Kernel Optimization">
+  <meta property="og:description" content="A tool-rich autonomous agent plateaued at 0.50× FlashAttention-3; KernelSeek, steered by short questions, reached 1.13× on the same task, hardware, and week.">
+  <meta property="og:image" content="https://kernelseek.github.io/images/h2h.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://kernelseek.github.io/">
+  <meta property="twitter:title" content="Ask, Don't Equip: Question-Driven Coding Agents for Deep Kernel Optimization">
+  <meta property="twitter:description" content="Dependency-free FlashAttention kernels for Hopper and Blackwell: 1.16× FA3 and 1.46× FA4, built by a question-driven coding agent.">
+  <meta property="twitter:image" content="https://kernelseek.github.io/images/h2h.png">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://kernelseek.github.io/">
+
+  <!-- Citation metadata -->
+  <meta name="citation_title" content="Ask, Don't Equip: Question-Driven Coding Agents for Deep Kernel Optimization">
+  <meta name="citation_author" content="Oliaro, Gabriele">
+  <meta name="citation_author" content="Lee, Jaeseong">
+  <meta name="citation_author" content="Su, Zhaoyuan">
+  <meta name="citation_author" content="Vennam, Sreeram">
+  <meta name="citation_author" content="Jia, Zhihao">
+  <meta name="citation_author" content="Rajbhandari, Samyam">
+  <meta name="citation_publication_date" content="2026">
+  <meta name="citation_pdf_url" content="https://kernelseek.github.io/static/pdf/kernelseek.pdf">
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro|Lato:wght@300;400;700;900"
+        rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Texta:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" type="image/svg+xml" href="./images/kernelseek-logo.svg">
+  <style>
+    :root {
+      /* Light mode colors */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8f9fa;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --text-muted: #888888;
+      --border-color: #e1e5e9;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --accent-color: #11567F;
+      --accent-hover: #29B5E8;
+      --ask-color: #E8673A;
+      --equip-color: #2A7BD5;
+    }
+
+    [data-theme="dark"] {
+      /* Dark mode colors */
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #2d2d2d;
+      --text-primary: #ffffff;
+      --text-secondary: #cccccc;
+      --text-muted: #999999;
+      --border-color: #404040;
+      --shadow: rgba(0, 0, 0, 0.3);
+      --accent-color: #29B5E8;
+      --accent-hover: #11567F;
+      --ask-color: #F08A5D;
+      --equip-color: #6AA8EE;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .hero, .section { background-color: var(--bg-primary); }
+    .footer { background-color: var(--bg-secondary); }
+
+    hr { background-color: var(--border-color); }
+
+    details {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+    }
+    details > summary {
+      list-style: none;
+      color: var(--text-primary);
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] > summary .fa-chevron-right,
+    details[open] > summary svg.fa-chevron-right { transform: rotate(90deg); }
+
+    .publication-title {
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      font-weight: 900 !important;
+      color: var(--accent-color) !important;
+    }
+
+    .publication-subtitle {
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      color: var(--text-secondary);
+      font-weight: 400;
+      margin-top: 0.5rem;
+    }
+
+    .publication-authors {
+      font-family: 'Lato', 'Noto Sans', sans-serif !important;
+      font-weight: 400 !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      color: var(--accent-color) !important;
+    }
+
+    .title, .title.is-1, .title.is-2, .title.is-3, .title.is-4, .title.is-5, .title.is-6 {
+      color: var(--accent-color) !important;
+    }
+
+    body, p, div, span {
+      font-family: 'Lato', 'Noto Sans', sans-serif !important;
+    }
+
+    .content { color: var(--text-primary); }
+    .content strong, .content b { color: inherit; }
+
+    .external-link.button {
+      background-color: var(--accent-color) !important;
+      border-color: var(--accent-color) !important;
+      color: white !important;
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      border-radius: 80px !important;
+      padding: 12px 27px !important;
+      height: 34px !important;
+      transition: all 0.3s ease !important;
+    }
+    .external-link.button:hover {
+      background-color: var(--accent-hover) !important;
+      border-color: var(--accent-hover) !important;
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 8px var(--shadow) !important;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+    .theme-toggle:hover {
+      background: var(--accent-hover);
+      transform: scale(1.1);
+    }
+
+    .publication-authors a { color: var(--accent-color) !important; }
+
+    .stat-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px var(--shadow);
+    }
+    .stat-number {
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      font-weight: 900 !important;
+      font-size: 2.2rem;
+      color: var(--accent-color);
+      line-height: 1.1;
+    }
+    .stat-number .vs {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      font-weight: 400 !important;
+    }
+    .stat-label {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      margin-top: 0.4rem;
+    }
+
+    .figure-img {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      width: 100%;
+      display: block;
+    }
+    .figure-img.narrow { max-width: 640px; margin: 0 auto; }
+
+    .figure-caption {
+      margin-top: 0.75rem;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .section .column { min-width: 0; }
+
+    .table-scroll {
+      overflow-x: auto;
+      max-width: 100%;
+      margin: 0.5rem 0 0.2rem;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .content pre {
+      overflow-x: auto;
+      max-width: 100%;
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    .content code {
+      background-color: var(--bg-secondary);
+      color: var(--ask-color);
+    }
+    .content pre code { color: var(--text-primary); background: transparent; }
+    .content p code, .content li code { overflow-wrap: anywhere; }
+
+    .ks-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+    .ks-table th, .ks-table td {
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.42rem 0.5rem;
+      text-align: right;
+      white-space: nowrap;
+      color: var(--text-primary);
+      background: transparent;
+    }
+    .ks-table th:first-child, .ks-table td:first-child { text-align: left; }
+    .ks-table thead th {
+      color: var(--accent-color);
+      font-family: 'Texta', 'Google Sans', sans-serif !important;
+      font-weight: 700;
+    }
+    .ks-table tr.group td {
+      text-align: left;
+      font-style: italic;
+      color: var(--text-secondary);
+      padding-top: 0.8rem;
+    }
+    .ks-table tr.total td { font-weight: 700; }
+    .ks-table.h2h td, .ks-table.h2h th { white-space: normal; }
+    .ks-table.h2h td:nth-child(2), .ks-table.h2h th:nth-child(2) { color: var(--equip-color); }
+    .ks-table.h2h td:nth-child(3), .ks-table.h2h th:nth-child(3) { color: var(--ask-color); font-weight: 700; }
+
+    /* Ask vs. Equip comparison */
+    .frame-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.4rem 1.4rem 1.2rem;
+      height: 100%;
+      text-align: left;
+    }
+    .frame-card.equip { border-top: 5px solid var(--equip-color); }
+    .frame-card.ask { border-top: 5px solid var(--ask-color); }
+    .frame-card.equip h3 { color: var(--equip-color) !important; }
+    .frame-card.ask h3 { color: var(--ask-color) !important; }
+    .frame-card ul { margin-left: 1.1rem; margin-top: 0.5rem; }
+    .frame-card li { margin-bottom: 0.35rem; }
+
+    /* Question cards */
+    .q-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-left: 5px solid var(--ask-color);
+      border-radius: 10px;
+      padding: 1.1rem 1.2rem;
+      height: 100%;
+      text-align: left;
+    }
+    .q-quote {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+    .q-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--ask-color);
+      border: 1px solid var(--ask-color);
+      border-radius: 99px;
+      padding: 0 0.6rem;
+      margin-bottom: 0.6rem;
+    }
+    .q-row {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+    .q-row b { color: var(--text-primary); }
+    .q-row.outcome b { color: var(--accent-color); }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 0.8rem 0 0.4rem;
+    }
+    .pill {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 99px;
+      padding: 0.25rem 0.9rem;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+    .pill b { color: var(--ask-color); }
+
+    .self-q {
+      counter-reset: q;
+      list-style: none;
+      margin-left: 0 !important;
+      padding-left: 0;
+    }
+    .self-q li {
+      counter-increment: q;
+      position: relative;
+      padding: 0.55rem 0.8rem 0.55rem 2.8rem;
+      margin-bottom: 0.5rem !important;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+    }
+    .self-q li::before {
+      content: counter(q);
+      position: absolute;
+      left: 0.8rem;
+      top: 0.55rem;
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      background: var(--ask-color);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.4rem;
+    }
+
+    @media screen and (max-width: 768px) {
+      .theme-toggle { width: 42px; height: 42px; top: 12px; right: 12px; font-size: 17px; }
+      .publication-title { font-size: 1.6rem !important; }
+      .publication-title br { display: none; }
+      .stat-number { font-size: 1.7rem; }
+    }
+  </style>
+
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+</head>
+<body>
+  <!-- Theme Toggle Button -->
+  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+    <span id="theme-icon"><i class="fas fa-moon"></i></span>
+  </button>
+
+<section class="hero" style="margin-bottom: 0px;">
+  <div class="hero-body">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px; gap: 20px; flex-wrap: wrap;">
+            <img src="./images/kernelseek-logo.svg" alt="KernelSeek logo" style="max-height: 110px; width: auto;">
+            <div>
+              <h1 class="title is-2 publication-title" style="margin: 0;">Ask, Don't Equip: Question-Driven<br>Coding Agents for Deep Kernel Optimization</h1>
+            </div>
+          </div>
+
+          <div class="is-size-5 publication-authors" style="margin-top: 1.2rem;">
+            <span class="author-block">
+              <a href="https://www.gabrieleoliaro.com/">Gabriele Oliaro</a><sup>1,2</sup>
+            </span>
+            <span class="author-block" style="padding-left:18px">
+              <a href="https://thnkinbtfly.github.io/">Jaeseong Lee</a><sup>1</sup>
+            </span>
+            <span class="author-block" style="padding-left:18px">
+              <a href="https://alexsssu.github.io/">Zhaoyuan Su</a><sup>1</sup>
+            </span>
+            <span class="author-block" style="padding-left:18px">
+              <a href="https://vnnm404.github.io/">Sreeram Vennam</a><sup>2</sup>
+            </span>
+            <span class="author-block" style="padding-left:18px">
+              <a href="https://www.cs.cmu.edu/~zhihaoj2/">Zhihao Jia</a><sup>2</sup>
+            </span>
+            <span class="author-block" style="padding-left:18px">
+              <a href="https://www.snowflake.com/en/blog/authors/samyam-rajbhandari/">Samyam Rajbhandari</a><sup>1</sup>
+            </span>
+          </div>
+
+          <div class="is-size-6 publication-authors" style="margin-top: 0.4rem;">
+            <span class="author-block"><sup>1</sup>Snowflake AI Research</span>
+            <span class="author-block" style="padding-left:18px"><sup>2</sup>Carnegie Mellon University</span>
+          </div>
+
+          <div class="column has-text-centered" style="margin-top: 1.2rem;">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="./static/pdf/kernelseek.pdf"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://github.com/Snowflake-AI-Research/flash-cuda"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fab fa-github"></i></span>
+                  <span>Code</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://github.com/Snowflake-AI-Research/flash-cuda/blob/main/docs/questions.md"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-question-circle"></i></span>
+                  <span>Question Bank</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="#BibTeX"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-quote-right"></i></span>
+                  <span>BibTeX</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <img class="figure-img narrow" src="./images/h2h.png" alt="KernelSeek vs. a tool-rich autonomous agent: speedup over FlashAttention-3 against wall-clock hours">
+      <div class="content has-text-justified" style="margin-top: 1rem;">
+        <b>Same task, same evaluator, same H200 node, same week.</b> A tool-rich autonomous agent built to the prevailing
+        recipe (parsed profiler output, documentation retrieval, reference-library hints, a store of lessons) plateaued at
+        <b>0.50&times;</b> FlashAttention-3 after 133 model-driven steps. <b>KernelSeek</b>, a general-purpose coding agent
+        with a minimal harness and short questions at decision points, crossed parity and reached <b>1.13&times;</b>.
+        Solid lines are each lineage's best geomean over 26 configurations, dashed lines the worst configuration; ticks mark
+        human turns to KernelSeek.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Headline Stats -->
+<section class="section" style="padding-top: 0;">
+  <div class="container is-max-desktop">
+    <div class="columns is-multiline is-mobile">
+      <div class="column is-3-tablet is-6-mobile">
+        <div class="stat-card">
+          <div class="stat-number" style="font-size: 1.75rem;">1.13&times;<span class="vs"> vs </span>0.50&times;</div>
+          <div class="stat-label">KernelSeek vs. equipped agent, over FA3 on the same task</div>
+        </div>
+      </div>
+      <div class="column is-3-tablet is-6-mobile">
+        <div class="stat-card">
+          <div class="stat-number">1.16&times;</div>
+          <div class="stat-label">FlashAttention-3 on Hopper, correct on 182/182 scenarios</div>
+        </div>
+      </div>
+      <div class="column is-3-tablet is-6-mobile">
+        <div class="stat-card">
+          <div class="stat-number">1.46&times;</div>
+          <div class="stat-label">FlashAttention-4 on Blackwell, correct on every runnable scenario</div>
+        </div>
+      </div>
+      <div class="column is-3-tablet is-6-mobile">
+        <div class="stat-card">
+          <div class="stat-number">0</div>
+          <div class="stat-label">dependencies: no CUTLASS, CuTe, cuBLAS, or cuDNN</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- Abstract -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            LLM agents for GPU kernel optimization sit at two ends of a structure&ndash;freedom tradeoff. <b>Scripted</b> agents
+            fix what the model does at each step, via a learned policy, an optimization menu, or fixed roles, and are
+            sample-efficient where the recipe applies and stall where it does not. <b>Open-ended</b> agents let a self-directed
+            model mutate a population of kernels and pay for the freedom in trials: thousands of evaluations, repeated edits,
+            and wrong candidates. Both respond to hard targets by <i>equipping</i> the agent with more: parsed profiler output,
+            disassembly analysis, retrieval over documentation and libraries, and stores of lessons.
+          </p>
+          <p>
+            We argue that both lack <b>direction</b>, a hypothesis about where the remaining gap is, and that a short question
+            asked at the right moment supplies it without narrowing what the agent may do next. We present <b>KernelSeek</b>, a
+            question-driven agent that makes an existing CUDA kernel faster with no operator-specific knowledge and no faster
+            implementation to imitate: a general-purpose coding agent, a minimal harness that enforces a verifiable goal, and
+            questions at decision points, first from a human, then from a bank the agent applies to itself.
+          </p>
+          <p>
+            On the same task, evaluator, hardware, and week, a tool-rich autonomous agent built in the prevailing style
+            plateaued at <b>0.50&times;</b> FlashAttention-3 after 133 model-driven steps; KernelSeek reached <b>1.13&times;</b>.
+            It then produced dependency-free FlashAttention forward kernels for Hopper and Blackwell, single CUDA files with no
+            CUTLASS, CuTe, cuBLAS, or cuDNN, correct on all 182 scenarios per architecture and <b>1.16&times;</b>
+            FlashAttention-3 and <b>1.46&times;</b> FlashAttention-4 (geometric mean). Across 162 human messages and 11.5K agent
+            tool calls, every large gain followed a question that moved the agent to a different layer of the system or
+            rejected a claimed limit, never one that supplied information. We release the kernels, harness, question bank, and
+            all traces.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- Ask vs. Equip -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Ask vs. Equip</h2>
+        <div class="content has-text-justified">
+          <p>
+            Kernel optimization by an agent is a search. A candidate is a kernel source, its fitness is a vector of
+            per-scenario speedups (zero if any scenario is incorrect), and the agent is the variation operator: it proposes the
+            next candidate conditioned on a context. Everything a designer can do is a choice of <i>what enters that context
+            and when</i>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns">
+      <div class="column is-6">
+        <div class="frame-card equip">
+          <h3 class="title is-5"><i class="fas fa-toolbox" style="margin-right: 0.5rem;"></i>An equipped agent receives&hellip;</h3>
+          <ul>
+            <li>the task, the lineage, and feedback on the last candidate;</li>
+            <li>tools whose output has been <b>distilled for it</b>: a profiler parser that names the bottleneck, a disassembly differ;</li>
+            <li>knowledge <b>retrieved for it</b>: documentation sections, hints mined from reference libraries, a store of lessons.</li>
+          </ul>
+          <p style="margin-top: 0.6rem; color: var(--text-secondary);">The designer improves it by adding tools and knowledge.</p>
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="frame-card ask">
+          <h3 class="title is-5"><i class="fas fa-question" style="margin-right: 0.5rem;"></i>An asked agent receives&hellip;</h3>
+          <ul>
+            <li>the task, the lineage, and the harness's output;</li>
+            <li>every tool a developer machine offers (compiler, profiler, disassembler, sanitizer, debugger), with <b>nothing pre-digested</b>;</li>
+            <li>at decision points, a <b>short question</b>: direction as a hypothesis, not a menu.</li>
+          </ul>
+          <p style="margin-top: 0.6rem; color: var(--text-secondary);">The designer improves it by asking better questions.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <div class="content has-text-justified" style="margin-top: 0.8rem;">
+          <p>
+            &ldquo;Make this faster&rdquo; is open-ended, and the model answers it greedily. &ldquo;Is the baseline winning on
+            kernel cycles or only on wall-clock?&rdquo; is bounded, and to answer it the model will tear out and rewrite a part
+            of the kernel it would never touch on its own. A well-placed question supplies direction without narrowing what
+            the agent may do next, which neither more structure, more freedom, nor more tooling can.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- KernelSeek -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">KernelSeek</h2>
+        <div class="content has-text-justified">
+          <p>
+            KernelSeek takes a working CUDA kernel, a set of scenarios, and a goal, and returns a faster kernel whose outputs
+            match the seed on every scenario. Nothing in the method is specific to an operator, and nothing requires a faster
+            implementation to exist.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-multiline">
+      <div class="column is-6">
+        <div class="stat-card" style="text-align: left; height: 100%;">
+          <h3 class="title is-5" style="margin-bottom: 0.6rem;">
+            <i class="fas fa-vial" style="margin-right: 0.5rem;"></i> A minimal harness
+          </h3>
+          <p>
+            The only purpose-built component. One command builds a candidate, checks its outputs against the seed's and an
+            fp32 reference on every scenario, and times it against the seed back to back on the same GPU. Constraints are
+            enforced mechanically: the ban on CUTLASS, CuTe, cuBLAS, and cuDNN is checked on the built binary's symbols.
+          </p>
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="stat-card" style="text-align: left; height: 100%;">
+          <h3 class="title is-5" style="margin-bottom: 0.6rem;">
+            <i class="fas fa-flag-checkered" style="margin-right: 0.5rem;"></i> A verifiable goal
+          </h3>
+          <p>
+            The goal is a predicate over the evaluator's output, installed as a <b>Stop hook</b>: whenever the agent tries to
+            end its turn, unmet clauses send it back to work. Predicates quantify over <i>every</i> scenario, not an aggregate,
+            and are computed, never judged by a model. The hook returned the agent to work 59 times.
+          </p>
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="stat-card" style="text-align: left; height: 100%;">
+          <h3 class="title is-5" style="margin-bottom: 0.6rem;">
+            <i class="fas fa-question-circle" style="margin-right: 0.5rem;"></i> Questions at decision points
+          </h3>
+          <p>
+            At the start of a campaign, at a plateau, when the agent claims a limit or completion, after a suspiciously large
+            win, and when correctness breaks in a way the agent explains away. In between the agent works alone, about
+            <b>71 tool calls per human message</b>. The steerer contributes no code; it contributes doubt, at the right moment,
+            about the right thing.
+          </p>
+        </div>
+      </div>
+      <div class="column is-6">
+        <div class="stat-card" style="text-align: left; height: 100%;">
+          <h3 class="title is-5" style="margin-bottom: 0.6rem;">
+            <i class="fas fa-book-open" style="margin-right: 0.5rem;"></i> A question bank &amp; skill
+          </h3>
+          <p>
+            Recurring questions harden into a bank of <b>101 core entries</b> in ten groups, ordered by where the gap might be,
+            plus per-architecture checklists and an operator plug-in. Packaged as a skill, the agent asks them of itself and
+            fans out one subagent per hypothesis, each returning a measurement rather than a patch.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-5" style="margin-top: 1.5rem;">What makes a good question</h2>
+        <div class="content has-text-justified">
+          <p>Across the traces, the questions that preceded the largest gains share six properties:</p>
+          <ul>
+            <li><b>They carry no answer.</b> They name a class of hypothesis and leave the derivation to the agent.</li>
+            <li><b>They demand a measurement</b> the agent can make with the tools it has, so the answer is a number, not an opinion.</li>
+            <li><b>They move across layers</b>: kernel, host launch path, routing logic, the benchmark itself.</li>
+            <li><b>They refuse premature closure</b>, asking whether a claimed limit belongs to the hardware or to the agent's own design.</li>
+            <li><b>They are cheap</b>: tens of tokens, against the tens of thousands that retrieved documentation costs.</li>
+            <li><b>They counteract deference</b>, asking the agent to justify the structure and framing it started from with evidence.</li>
+          </ul>
+          <p>
+            KernelSeek also composes with evolutionary search: wrapped in an AVO-style monotone lineage, the strategist's
+            directives become questions, hypotheses to test rather than edits to make.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- Results -->
+<section class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Results</h2>
+        <h2 class="title is-5">Head-to-head on the same task</h2>
+        <div class="content has-text-justified">
+          <p>
+            Before KernelSeek we built <b>Arsenal</b>, the agent the prevailing recipe prescribes: a deterministic orchestrator,
+            sixteen hand-written levers keyed to NCU bottleneck labels, retrieval over documentation and DeepGEMM /
+            ThunderKittens / CUTLASS, and a typed knowledge store, with Claude Opus as the brain and no human in the loop.
+            During its first Hopper session, KernelSeek adopted Arsenal's own evaluator: the same 26 configurations, FA3
+            baseline, and correctness gate, on the same machine, in overlapping days.
+          </p>
+        </div>
+
+        <div class="table-scroll">
+          <table class="ks-table h2h">
+            <thead>
+              <tr><th></th><th>Equipped agent</th><th>KernelSeek</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Human text in prompts</td><td>none</td><td>40 messages, 17 questions</td></tr>
+              <tr><td>Model-driven steps / turns</td><td>133 steps</td><td>40 turns</td></tr>
+              <tr><td>Wall-clock to best</td><td>44.7 h of 62.4 h</td><td>68.0 h, 41.3 h active</td></tr>
+              <tr><td>Best geomean vs. FA3</td><td>0.48&times;</td><td>1.13&times;</td></tr>
+              <tr><td>Worst configuration</td><td>0.24&times;</td><td>0.87&times;</td></tr>
+              <tr><td>Configurations &ge; 1.0&times;</td><td>0 / 26</td><td>22 / 26</td></tr>
+              <tr><td>Goal met</td><td>no</td><td>yes</td></tr>
+              <tr class="group"><td colspan="3">Where the effort went</td></tr>
+              <tr><td>Reference material pushed into prompt</td><td>37% of prompt</td><td>none</td></tr>
+              <tr><td>Tool-result text re-reading own kernel</td><td>82%</td><td>26%</td></tr>
+              <tr><td>Profiler (NCU) runs</td><td>1 per step, parsed</td><td>429, raw</td></tr>
+              <tr><td>SASS / PTX inspections</td><td>1 per step, parsed</td><td>372</td></tr>
+              <tr><td>Documentation reads</td><td>92 lookups</td><td>36</td></tr>
+              <tr><td>Builds / benchmark runs</td><td>133 / 133</td><td>377 / 937</td></tr>
+              <tr><td>Subagents spawned</td><td>0</td><td>48</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="figure-caption">
+          <b>Head-to-head on the equipped agent's own evaluator</b> (26 FA3 configurations, H200). Equipped-agent tool use is
+          over its 133 steps; KernelSeek's over all 16 sessions. The questions did not reduce tool use; they aimed it.
+        </p>
+
+        <div class="content has-text-justified">
+          <p>
+            Arsenal made all its progress by step 35. The remaining 98 model-driven steps produced nothing beyond noise: its
+            final champion is byte-identical to an earlier candidate and was promoted because one of 54 re-measurements landed
+            above the noise band. Its memory file recorded one configuration as &ldquo;DEFINITIVE[ly] &hellip; walled by [the]
+            65536-reg file&rdquo;, a wall FA3 does not hit. <b>Information was not the constraint</b>: with a third of every
+            prompt devoted to reference material, 82% of what it read was its own kernel. Every diagnostic lived at one layer,
+            while the gap KernelSeek later closed on this evaluator was in the host launch path.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column">
+        <br>
+        <h2 class="title is-5">Dependency-free FlashAttention for Hopper and Blackwell</h2>
+        <div class="content has-text-justified">
+          <p>
+            Carried through to full campaigns, KernelSeek produced two FlashAttention forward kernels, each a single CUDA file
+            with no CUTLASS, CuTe, cuBLAS, or cuDNN, exposing vLLM's FA3 operator schema so they drop in for upstream. The
+            182-scenario suites mirror the upstream test grids and add SOL-ExecBench production shapes: bf16, fp16, and fp8;
+            paged and contiguous KV; MHA, GQA, and MQA; causal, sliding-window, softcapped, and attention-sink masking; ragged
+            batches; prefill, chunked prefill, and split-KV decode; and unequal query and value head dimensions.
+          </p>
+        </div>
+        <div class="columns">
+          <div class="column is-6">
+            <div class="stat-card" style="text-align: left; height: 100%;">
+              <h3 class="title is-5"><code style="color: var(--ask-color);">fa3_hopper.cu</code> &mdash; 3.6K lines</h3>
+              <p>
+                Warp-specialized producer and consumer warpgroups connected by a TMA + mbarrier ring, asynchronous
+                <code>wgmma</code> with <code>setmaxnreg</code> register rebalancing, persistent scheduling with inter-warpgroup
+                ping-pong, split-KV decode with a combine pass, and a native fp8 path.
+              </p>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="stat-card" style="text-align: left; height: 100%;">
+              <h3 class="title is-5"><code style="color: var(--ask-color);">fa4_blackwell.cu</code> &mdash; 10.2K lines</h3>
+              <p>
+                A kernel family with host-side routing: a persistent warp-specialized collective (two softmax warpgroups in an
+                ordered ping-pong, a correction warpgroup rescaling the output in tensor memory, one MMA warp driving
+                <code>tcgen05</code>), variants for unequal head dims and paged prefill, and a two-tile kernel for small,
+                ragged, and decode shapes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <img class="figure-img" src="./images/casestudy.png" alt="Case-study speedups on Hopper and Blackwell, by scenario set and per scenario" style="margin-top: 1rem;">
+        <p class="figure-caption">
+          <b>Case-study results.</b> Left: geomean speedup by scenario set vs. upstream (FA3 / FA4), the fastest open-source
+          implementation (upstream or FlashInfer), and the fastest available (also cuDNN). Right: every paired scenario vs. the
+          fastest available implementation, sorted.
+        </p>
+
+        <div class="table-scroll" style="margin-top: 1rem;">
+          <table class="ks-table">
+            <thead>
+              <tr>
+                <th>Set</th><th><i>n</i></th><th>Correct</th>
+                <th>vs. upstream</th><th>vs. open-source</th><th>vs. available</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="group"><td colspan="6">Hopper (H200), upstream = FA3</td></tr>
+              <tr><td>attntest</td><td>64</td><td>64/64</td><td>1.22&times;</td><td>1.22&times;</td><td>1.14&times;</td></tr>
+              <tr><td>edge</td><td>31</td><td>31/31</td><td>1.55&times;</td><td>1.55&times;</td><td>1.31&times;</td></tr>
+              <tr><td>claim</td><td>77</td><td>77/77</td><td>1.01&times;</td><td>1.01&times;</td><td>0.99&times;</td></tr>
+              <tr><td>real</td><td>10</td><td>10/10</td><td>1.10&times;</td><td>1.10&times;</td><td>1.08&times;</td></tr>
+              <tr class="total"><td>all</td><td>182</td><td>182/182</td><td>1.16&times;</td><td>1.16&times;</td><td>1.10&times;</td></tr>
+              <tr class="group"><td colspan="6">Blackwell (B200), upstream = FA4</td></tr>
+              <tr><td>attntest</td><td>33</td><td>52/52</td><td>1.44&times;</td><td>1.42&times;</td><td>1.09&times;</td></tr>
+              <tr><td>edge</td><td>28</td><td>31/31</td><td>2.02&times;</td><td>1.93&times;</td><td>1.42&times;</td></tr>
+              <tr><td>claim</td><td>55</td><td>61/61</td><td>1.30&times;</td><td>1.20&times;</td><td>0.92&times;</td></tr>
+              <tr><td>real</td><td>8</td><td>10/10</td><td>1.10&times;</td><td>1.10&times;</td><td>1.02&times;</td></tr>
+              <tr class="total"><td>all</td><td>124</td><td>154/154</td><td>1.46&times;</td><td>1.39&times;</td><td>1.07&times;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="figure-caption">
+          <i>n</i> counts the scenarios the upstream kernel also runs (paired); &ldquo;Correct&rdquo; is over runnable
+          scenarios. Speedups are geometric means of wall-clock ratios from byte-identical inputs timed back to back on one GPU
+          with an L2 flush before each sample.
+        </p>
+
+        <div class="content has-text-justified">
+          <p>
+            Both kernels are correct on every scenario they run and beat upstream in geometric mean. The headline shrinks as
+            the baseline strengthens: cuDNN is the fastest baseline on 54 of 182 Hopper and 92 of 124 Blackwell scenarios, so
+            the kernels are <b>1.10&times;</b> and <b>1.07&times;</b> the fastest available implementation. Several decisive
+            gains were outside the kernel bodies: a synchronous host copy costing about 38&nbsp;&mu;s per call, a stale routing
+            gate, a TMA gather issued from divergent lanes, and ring state the compiler had placed in local memory.
+            Every Blackwell scenario below parity has a measured cause; fp8 inputs and dense head dims &ge; 192 are not yet built
+            on Blackwell (28 of 182 scenarios).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column">
+        <br>
+        <h2 class="title is-5">Which questions mattered</h2>
+        <div class="content has-text-justified">
+          <p>
+            Every large jump followed a question that either <b>moved the agent to a different layer</b> or <b>rejected a
+            claimed limit</b>; none followed a message that supplied information the agent lacked. And the measurement each
+            question triggered was always one the agent could already make. What it lacked was a reason to look.
+          </p>
+        </div>
+
+        <div class="columns is-multiline">
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">gap triage</span>
+              <div class="q-quote">&ldquo;What configs are bringing down the geomean?&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> tuning the hd128 paths was the right priority.</div>
+              <div class="q-row"><b>Measured:</b> a per-configuration table; hd96, hd192, hd256 were on the scalar fallback at 0.01&times;.</div>
+              <div class="q-row outcome"><b>Outcome:</b> fallback removed; 0.44 &rarr; 0.96 geomean in 4 hours.</div>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">bound differencing</span>
+              <div class="q-quote">&ldquo;Is this ceiling a property of the hardware, or of our design? Where does the time go outside the kernel?&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> split-KV decode was at a &ldquo;genuine ceiling within the harness rules&rdquo;.</div>
+              <div class="q-row"><b>Measured:</b> a host-side profile; a per-call tensor fill of 2&ndash;5&nbsp;&mu;s outside the kernel.</div>
+              <div class="q-row outcome"><b>Outcome:</b> split-KV 0.87 &rarr; 0.97, geomean 1.02 &rarr; 1.13.</div>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">benchmark validity</span>
+              <div class="q-quote">&ldquo;Do our scenarios cover the shapes and features the operator is actually called with?&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> 40 of 40 scenarios correct meant the kernel was done.</div>
+              <div class="q-row"><b>Measured:</b> the full upstream test grid; 52 of 58 correct, sink and left-pad outputs off by 495&times; and 103&times;.</div>
+              <div class="q-row outcome"><b>Outcome:</b> six fixes; 58 of 58 correct, geomean 1.10 on the new grid.</div>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">challenge a limit</span>
+              <div class="q-quote">&ldquo;Why do you think the goal was achieved? We are still well below parity.&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> the Stop-hook judge had accepted &ldquo;goal met&rdquo;.</div>
+              <div class="q-row"><b>Measured:</b> the agent: &ldquo;I stopped after the first successful lever and declared victory prematurely.&rdquo;</div>
+              <div class="q-row outcome"><b>Outcome:</b> fp8 hd256 decode 0.20/0.34 &rarr; 0.66/0.77.</div>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">hypothesis check</span>
+              <div class="q-quote">&ldquo;Is it NCU that hangs, or our kernel?&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> &ldquo;No deadlock in our kernel.&rdquo;</div>
+              <div class="q-row"><b>Measured:</b> sanitizer, then debugger; a warp-convergent <code>tcgen05.wait</code> inside a divergent branch.</div>
+              <div class="q-row outcome"><b>Outcome:</b> all 8 hanging shapes fixed.</div>
+            </div>
+          </div>
+          <div class="column is-6">
+            <div class="q-card">
+              <span class="q-tag">challenge a limit</span>
+              <div class="q-quote">&ldquo;Is this really a register floor?&rdquo;</div>
+              <div class="q-row"><b>Belief:</b> hd256 was register-capped; the judge had accepted the limit twice.</div>
+              <div class="q-row"><b>Measured:</b> a collective rewrite of the consumer loop.</div>
+              <div class="q-row outcome"><b>Outcome:</b> 0.84 &rarr; 0.95&ndash;0.96&times;; the agent's note: &ldquo;the &lsquo;floor&rsquo; conclusion was wrong&rdquo;.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <br>
+        <h2 class="title is-5">Anatomy of 162 human messages</h2>
+        <img class="figure-img narrow" src="./images/messages.png" alt="Primary act of 162 human messages and question categories">
+        <p class="figure-caption">
+          <b>(a)</b> Primary act of each human message; <b>(b)</b> categories of the questions, by campaign.
+        </p>
+        <div class="content has-text-justified">
+          <p>
+            Directives are the largest class (36%), followed by questions (27%), approvals, corrections, and goals; 39% of
+            messages are interrogative in phrasing. The steering was interrogative, not mostly questions: directives and
+            approvals keep the agent moving, and the questions are where its course changed. The agent, for its part, asserted
+            a limit or an impossibility 126 times and offered to accept the current state or stop in 24 of the 35 questions it
+            put to the human. <b>Autonomous agents seek closure; the harness and the human refused it.</b>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <br>
+        <h2 class="title is-5">Evolution amplifies direction; it does not supply it</h2>
+        <img class="figure-img narrow" src="./images/evo.png" alt="Evolutionary search generations vs. a single question on Blackwell dense prefill">
+        <p class="figure-caption">
+          <b>Questions and evolutionary search</b> on the Blackwell hd128 dense-prefill kernel. Four generations of
+          question-directed evolution, then one question.
+        </p>
+        <div class="content has-text-justified">
+          <p>
+            The first generation, whose directive asked whether a persistent schedule with longest-first ordering and
+            cross-tile overlap would recover the lost overlap, took the kernel from 0.29&times; to 0.68&times;. Three more
+            generations added 0.10&times; between them, and the search stalled at 0.78&times; with the kernel's own cycle count
+            already below upstream's. The last 22 points came from a question, not a generation: asked where the time was going,
+            the agent profiled the whole call rather than the kernel and found synchronous host copies. Evolution searched
+            efficiently within the layer it was pointed at; it could not move to a layer it was not pointed at.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr>
+
+<!-- Question bank -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">The Question Bank</h2>
+        <div class="content has-text-justified">
+          <p>
+            A question is admitted only if it carries no answer, is answerable by a measurement with stock tools, is phrased
+            against a bound (a roofline or a per-tile cycle budget) rather than a reference, names an architecture only as a
+            parameter, and names no operator. Beyond the traces, we mined three public GEMM worklogs on Ampere, Hopper, and
+            Blackwell and the FlashAttention-3 and -4 papers for the diagnostic that preceded each optimization. The bank is
+            ordered by where the gap might be:
+          </p>
+        </div>
+        <div class="pill-list">
+          <span class="pill"><b>A</b> Scope &amp; triage</span>
+          <span class="pill"><b>B</b> Bound &amp; regime</span>
+          <span class="pill"><b>C</b> Harness &amp; measurement</span>
+          <span class="pill"><b>D</b> Host, launch &amp; routing</span>
+          <span class="pill"><b>E</b> Memory hierarchy</span>
+          <span class="pill"><b>F</b> Compute issue</span>
+          <span class="pill"><b>G</b> Occupancy &amp; registers</span>
+          <span class="pill"><b>H</b> Asynchrony &amp; pipelining</span>
+          <span class="pill"><b>I</b> Scheduling</span>
+          <span class="pill"><b>J</b> Low-precision numerics</span>
+        </div>
+        <h2 class="title is-5" style="margin-top: 2rem;">What the agent asks itself at every iteration</h2>
+        <div class="content has-text-left">
+          <ol class="self-q">
+            <li>Which bound binds on this scenario (bandwidth, MMA, special-function unit, shared-memory bandwidth, issue slots, launch), and what fraction of it do we reach?</li>
+            <li>Is the gap in kernel cycles, or outside the kernel (host, launch, routing, harness)?</li>
+            <li>Which single unit or stage has the largest excess over its cycle budget, and what is my hypothesis for why?</li>
+            <li>Do the losing scenarios share one cause, and have I grouped them before fixing any?</li>
+            <li>Should the losing regime have its own kernel instead of a flag in a shared one?</li>
+            <li>Is every asynchronous mechanism this architecture offers actually asynchronous in my SASS, or are waits placed where they serialize?</li>
+            <li>Is the win I just measured larger than the noise of this GPU at this moment, and does it hold on the other regimes?</li>
+            <li>If another implementation of this operator can be measured on this machine, how do its profile and launch path differ from mine, and which difference explains my gap?</li>
+          </ol>
+          <p style="text-align: center; margin-top: 1.2rem;">
+            <a href="https://github.com/Snowflake-AI-Research/flash-cuda/blob/main/docs/questions.md" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="fas fa-question-circle"></i></span>
+              <span>Full Question Bank</span>
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- Getting Started -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Getting Started</h2>
+        <div class="content has-text-justified">
+          <p>
+            The release contains both kernels (<code>kernels/fa3_hopper.cu</code> and <code>kernels/fa4_blackwell.cu</code>),
+            the evaluator, the PTX probes used to validate each Blackwell primitive in isolation, the evolutionary search
+            scripts, the question bank and skill, and the agent traces. It requires CUDA &ge; 12.3 and a Hopper or Blackwell GPU.
+          </p>
+<pre><code>git clone https://github.com/Snowflake-AI-Research/flash-cuda.git
+cd flash-cuda
+./setup.sh                 # torch + FA4 CuteDSL baseline + cuDNN frontend
+./setup.sh --with-vllm     # also install vLLM for the Hopper FA3 baseline</code></pre>
+          <p>
+            The evaluator compiles the kernel into a torch extension, checks correctness against upstream and an fp32
+            reference, and benchmarks each scenario against the upstream kernel, scheduling scenarios across every visible GPU:
+          </p>
+<pre><code>python -m bench.eval --target hopper              # build + correctness + per-scenario speedup
+python -m bench.eval --target blackwell
+python -m bench.eval --target hopper --no-perf    # build + correctness only
+python -m bench.eval --target hopper --configs attn_dense_hd128_causal,attn_dense_hd128_fp8</code></pre>
+          <p style="text-align: center; margin-top: 1.2rem;">
+            <a href="https://github.com/Snowflake-AI-Research/flash-cuda" class="external-link button is-normal is-rounded is-dark">
+              <span class="icon"><i class="fab fa-github"></i></span>
+              <span>Code</span>
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Frequently Asked Questions</h2>
+      </div>
+    </div>
+
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <div class="content has-text-justified">
+
+          <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 1.15rem; user-select: none;">
+              <i class="fas fa-chevron-right" style="transition: transform 0.2s; margin-right: 0.5rem;"></i>
+              Did a human expert do the work?
+            </summary>
+            <div style="margin-top: 1rem; padding-left: 1.5rem;">
+              <p>
+                The human wrote no kernel code; the agent wrote all 13.8K lines of the two kernels. The messages name
+                measurements, layers, and process rather than mechanisms: of the 63 interrogative ones, 17 mention an attention
+                concept and none prescribes a CUDA construct. The human did have systems expertise and used it to decide which
+                measurement to demand and when; the claim is only that the questions, once asked, are short, generic, and now
+                written down.
+              </p>
+            </div>
+          </details>
+
+          <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 1.15rem; user-select: none;">
+              <i class="fas fa-chevron-right" style="transition: transform 0.2s; margin-right: 0.5rem;"></i>
+              Does KernelSeek need a reference implementation?
+            </summary>
+            <div style="margin-top: 1rem; padding-left: 1.5rem;">
+              <p>
+                No. The harness checks correctness against the seed and an fp32 reference, the goal is a predicate over the seed,
+                and the bank phrases every bound as a roofline or a cycle budget. In the case study the upstream kernel served as
+                a yardstick and as a bound that let a question overturn a claimed ceiling. That second role is the one that
+                mattered, and it is filled without a reference by a roofline, a speed-of-light estimate, a launcher-only A/B, or
+                a kernel for a neighboring shape. The equipped agent had far more reference material in its prompt and gained
+                nothing from it.
+              </p>
+            </div>
+          </details>
+
+          <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 1.15rem; user-select: none;">
+              <i class="fas fa-chevron-right" style="transition: transform 0.2s; margin-right: 0.5rem;"></i>
+              Why not just give the agent more tools?
+            </summary>
+            <div style="margin-top: 1rem; padding-left: 1.5rem;">
+              <p>
+                Because information was not what was missing. The equipped agent had 37% of every prompt devoted to pre-fetched
+                reference material and 1.6&nbsp;GB of reference code on disk, yet 82% of what it read through its own tool calls
+                was its own kernel, and its 92 documentation lookups mostly justified not making a change. Its knowledge store
+                hardened conclusions rather than evidence. KernelSeek did not use fewer tools (11.5K tool calls, 429 raw NCU
+                runs, 48 subagents); the questions aimed them.
+              </p>
+            </div>
+          </details>
+
+          <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 1.15rem; user-select: none;">
+              <i class="fas fa-chevron-right" style="transition: transform 0.2s; margin-right: 0.5rem;"></i>
+              How fair is the head-to-head comparison?
+            </summary>
+            <div style="margin-top: 1rem; padding-left: 1.5rem;">
+              <p>
+                Task, evaluator, configurations, baseline, correctness gate, hardware, and week are shared, and KernelSeek's 40
+                human turns are counted in its budget. Three caveats apply: KernelSeek had built a kernel for FA3's 40-scenario
+                test grid in the two preceding days; the front-ends differ and token usage is not recoverable for the Cursor
+                sessions; and each arm is a single run. The fair reading is that in one calendar week a steered agent crossed
+                parity on an evaluator on which an unsteered one, given more compute, did not reach half of it.
+              </p>
+            </div>
+          </details>
+
+          <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 1.15rem; user-select: none;">
+              <i class="fas fa-chevron-right" style="transition: transform 0.2s; margin-right: 0.5rem;"></i>
+              What are the current limitations?
+            </summary>
+            <div style="margin-top: 1rem; padding-left: 1.5rem;">
+              <p>
+                The Hopper kernel loses on fp8 dense prefill and softcapped prefill, and the Blackwell kernel does not yet build
+                fp8 inputs or dense head dimensions of 192 and above; neither covers the backward pass. Whether the bank can
+                replace the human at decision points is not yet tested; the experiment's design, four arms on a remaining
+                Blackwell gap at fixed model and budget, is described in the paper. Next targets include latent-attention
+                decode, grouped GEMMs for mixture-of-experts layers, fused collectives, and persistent megakernels.
+              </p>
+            </div>
+          </details>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- BibTeX -->
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@article{oliaro2026kernelseek,
+  author  = {Gabriele Oliaro and Jaeseong Lee and Zhaoyuan Su and
+             Sreeram Vennam and Zhihao Jia and Samyam Rajbhandari},
+  title   = {Ask, Don't Equip: Question-Driven Coding Agents for
+             Deep Kernel Optimization},
+  journal = {arXiv preprint},
+  year    = {2026},
+  url     = {https://kernelseek.github.io/}
+}</code></pre>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p style="text-align:center;font-size:small;">
+            KernelSeek is developed by Snowflake AI Research and Carnegie Mellon University.
+          </p>
+          <p style="text-align:right;font-size:small;">
+            <a href="https://github.com/nerfies/nerfies.github.io">Webpage template credits</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+  <script>
+    // Theme management
+    (function() {
+      const themeToggle = document.getElementById('theme-toggle');
+      const themeIcon = document.getElementById('theme-icon');
+      const body = document.body;
+
+      function readSaved() {
+        try { return localStorage.getItem('theme'); } catch (e) { return null; }
+      }
+      function save(theme) {
+        try { localStorage.setItem('theme', theme); } catch (e) {}
+      }
+
+      function getInitialTheme() {
+        const saved = readSaved();
+        if (saved) return saved;
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+        return 'light';
+      }
+
+      function applyTheme(theme, persist) {
+        body.setAttribute('data-theme', theme);
+        // Replace the icon element so Font Awesome's SVG replacement picks up the new icon.
+        themeIcon.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        if (persist) save(theme);
+      }
+
+      applyTheme(getInitialTheme(), false);
+
+      themeToggle.addEventListener('click', function() {
+        applyTheme(body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+      });
+
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          if (!readSaved()) applyTheme(e.matches ? 'dark' : 'light', false);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
